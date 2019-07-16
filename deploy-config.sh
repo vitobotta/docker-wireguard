@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# brew install nmap awk ipcalc wireguard-tools
+
+clear >$(tty)
+
 command -v nmap >/dev/null 2>&1 || { echo >&2 "nmap is required but it's not installed.  Aborting."; exit 1; }
 command -v awk >/dev/null 2>&1 || { echo >&2 "awk is required but it's not installed.  Aborting."; exit 1; }
 command -v ipcalc >/dev/null 2>&1 || { echo >&2 "ipcalc is required but it's not installed.  Aborting."; exit 1; }
@@ -56,6 +60,8 @@ SUBNET=${SUBNET:-"192.168.37.0/24"}
 LISTEN_PORT=${LISTEN_PORT:-51820}
 
 
+# Ensure at least two hosts have been specified
+
 if [[ -z "$HOSTS_ARG" ]]; then
   echo "Must provide two or more hosts (IP addresses) to configure a Wireguard VPN." 1>&2
   exit 1
@@ -69,6 +75,16 @@ if (( ${#hosts_array[@]} <= 1 )); then
   exit 1
 fi
 
+# Ensure the IPs specified are all different
+
+uniq=($(printf "%s\n" "${hosts_array[@]}" | sort -u | tr '\n' ' '))
+
+if (( ${#hosts_array[@]} != ${#uniq[@]} )); then
+  echo "Please ensure there are no duplicates in the IPs specified."
+  exit 1
+fi
+
+# Validate the IPs
 
 invalid_hosts=()
 
@@ -89,6 +105,8 @@ if [ ${#invalid_hosts[@]} -ne 0 ]; then
   exit 1
 fi
 
+# Check if we can connect to the hosts via SSH
+
 cant_connect=()
 
 for ((i = 0; i < ${#hosts_array[@]}; i++))
@@ -108,6 +126,7 @@ if [ ${#cant_connect[@]} -ne 0 ]; then
   exit 1
 fi
 
+# Determine the usable ips for the subnet specified and check if they are enough to cover all the hosts
 
 IFS=$'\n' read -rd '' -a subnet_ips <<<"`nmap -nsL $SUBNET | awk '/Nmap scan report/{print $NF}'`"
 
@@ -129,6 +148,7 @@ if (( ${#usable_subnet_ips[@]} <  ${#hosts_array[@]} )); then
   exit 1
 fi
 
+#  Generate private and public keys
 
 private_keys=()
 public_keys=()
@@ -143,8 +163,12 @@ do
 
   private_keys+=(`cat $private_key_file`)
   public_keys+=(`cat $public_key_file`)
+
+  rm $private_key_file
+  rm $public_key_file
 done
 
+# Generate and deploy Wireguard configuration to each host
 
 for ((i = 0; i < ${#hosts_array[@]}; i++))
 do
@@ -171,7 +195,17 @@ EOF
     fi
   done
 
-  cat $host_config_file
+  host_ip="${hosts_array[$i]}"
+
+  echo "Deploying Wireguard configuration to host: $host_ip ..."
+
+  home_directory=`ssh -q $SSH_USER@$host_ip pwd`
+
+  scp -q $host_config_file $SSH_USER@$host_ip:.wireguard.conf
+
+  echo "... deployed config to $home_directory/.wireguard.conf"
+
+  rm $host_config_file
 done
 
 
