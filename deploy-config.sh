@@ -107,9 +107,8 @@ cant_connect=()
 
 for host_ip in ${hosts_array[@]}; do
   ssh -n -q -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=1 -o ConnectionAttempts=1 $SSH_USER@$host_ip exit
-  check_exit_code=$?
-
-  if [ "$check_exit_code" -ne "0" ]
+  
+  if [ "$?" -ne "0" ]
   then
     cant_connect+=($host_ip)
   fi
