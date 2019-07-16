@@ -2,7 +2,7 @@
 
 # brew install nmap awk ipcalc wireguard-tools
 
-clear >$(tty)
+clear 
 
 command -v nmap >/dev/null 2>&1 || { echo >&2 "nmap is required but it's not installed.  Aborting."; exit 1; }
 command -v awk >/dev/null 2>&1 || { echo >&2 "awk is required but it's not installed.  Aborting."; exit 1; }
