@@ -2,8 +2,6 @@
 
 # brew install nmap awk ipcalc wireguard-tools
 
-clear 
-
 command -v nmap >/dev/null 2>&1 || { echo >&2 "nmap is required but it's not installed.  Aborting."; exit 1; }
 command -v awk >/dev/null 2>&1 || { echo >&2 "awk is required but it's not installed.  Aborting."; exit 1; }
 command -v ipcalc >/dev/null 2>&1 || { echo >&2 "ipcalc is required but it's not installed.  Aborting."; exit 1; }
@@ -88,9 +86,7 @@ fi
 
 invalid_hosts=()
 
-for ((i = 0; i < ${#hosts_array[@]}; i++))
-do
-  host_ip="${hosts_array[$i]}"
+for host_ip in ${hosts_array[@]}; do
   check_output=$(check_ipv4_address $host_ip)
   check_exit_code=$(echo $?)
 
@@ -109,13 +105,12 @@ fi
 
 cant_connect=()
 
-for ((i = 0; i < ${#hosts_array[@]}; i++))
-do
-  host_ip="${hosts_array[$i]}"
-  check_output=$(ssh -q -o ConnectTimeout=1 -o ConnectionAttempts=1 $SSH_USER@$host_ip exit)
-  check_exit_code=$(echo $?)
+for host_ip in ${hosts_array[@]}; do
+  ssh -n -q -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=1 -o ConnectionAttempts=1 $SSH_USER@$host_ip exit
+  check_exit_code=$?
 
-  if [ "$check_exit_code" -ne "0" ]; then
+  if [ "$check_exit_code" -ne "0" ]
+  then
     cant_connect+=($host_ip)
   fi
 done
@@ -153,9 +148,7 @@ fi
 private_keys=()
 public_keys=()
 
-for ((i = 0; i < ${#hosts_array[@]}; i++))
-do
-  host_ip="${hosts_array[$i]}"
+for host_ip in ${hosts_array[@]}; do
   private_key_file=`mktemp`
   public_key_file=`mktemp`
 
@@ -199,9 +192,9 @@ EOF
 
   echo "Deploying Wireguard configuration to host: $host_ip ..."
 
-  home_directory=`ssh -q $SSH_USER@$host_ip pwd`
+  home_directory=`ssh -n -q -o StrictHostKeyChecking=no $SSH_USER@$host_ip pwd`
 
-  scp -q $host_config_file $SSH_USER@$host_ip:.wireguard.conf
+  scp -q -o StrictHostKeyChecking=no $host_config_file $SSH_USER@$host_ip:.wireguard.conf
 
   echo "... deployed config to $home_directory/.wireguard.conf"
 
