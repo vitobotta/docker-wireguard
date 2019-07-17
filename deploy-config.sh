@@ -188,7 +188,7 @@ EOF
 [Peer]
 PublicKey = ${public_keys[$j]}
 Endpoint = ${hosts_array[$j]}:$LISTEN_PORT
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = ${usable_subnet_ips[$j]}/32
 
 EOF
     fi
