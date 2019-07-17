@@ -39,6 +39,11 @@ case $key in
     shift # past argument
     shift # past value
   ;;
+  --wg-interface)
+    WG_INTERFACE="$2"
+    shift # past argument
+    shift # past value
+  ;;
   --listen-port)
     LISTEN_PORT="$2"
     shift # past argument
@@ -56,6 +61,7 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 SSH_USER=${SSH_USER:-rancher}
 SUBNET=${SUBNET:-"192.168.37.0/24"}
 LISTEN_PORT=${LISTEN_PORT:-51820}
+WG_INTERFACE=${WG_INTERFACE:-wg0}
 
 
 # Ensure at least two hosts have been specified
@@ -164,13 +170,14 @@ done
 
 for ((i = 0; i < ${#hosts_array[@]}; i++))
 do
-  host_config_file=`mktemp`
+  host_config_file=`mktemp -d`/$WG_INTERFACE.conf
 
   cat > $host_config_file <<EOF
 [Interface]
 Address = ${usable_subnet_ips[$i]}
 PrivateKey = ${private_keys[$i]}
 ListenPort = $LISTEN_PORT
+SaveConfig = true
 
 EOF
 
@@ -181,7 +188,7 @@ EOF
 [Peer]
 PublicKey = ${public_keys[$j]}
 Endpoint = ${hosts_array[$j]}:$LISTEN_PORT
-AllowedIPs = $SUBNET
+AllowedIPs = 0.0.0.0/0
 
 EOF
     fi
@@ -191,11 +198,13 @@ EOF
 
   echo "Deploying Wireguard configuration to host: $host_ip ..."
 
+  ssh -n -q -o StrictHostKeyChecking=no $SSH_USER@$host_ip mkdir -p wireguard
+
   home_directory=`ssh -n -q -o StrictHostKeyChecking=no $SSH_USER@$host_ip pwd`
 
-  scp -q -o StrictHostKeyChecking=no $host_config_file $SSH_USER@$host_ip:.wireguard.conf
+  scp -q -o StrictHostKeyChecking=no $host_config_file $SSH_USER@$host_ip:wireguard
 
-  echo "... deployed config to $home_directory/.wireguard.conf"
+  echo "... deployed config to $home_directory/wireguard/$WG_INTERFACE.conf"
 
   rm $host_config_file
 done
