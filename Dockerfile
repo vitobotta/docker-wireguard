@@ -1,13 +1,6 @@
-FROM ubuntu:18.04
+FROM alpine:3.12.0
 
-RUN apt-get update -qq \
-  && apt-get install -y -qq software-properties-common \
-  && add-apt-repository ppa:wireguard/wireguard \
-  && apt-get update -qq \
-  && apt-get install -y -qq wireguard libmnl-dev libelf-dev build-essential pkg-config wget iproute2 net-tools \
-  && wget -O /wireguard.tar.xz https://git.zx2c4.com/WireGuard/snapshot/WireGuard-0.0.20190702.tar.xz \
-  && cd / \
-  && tar -xf /wireguard.tar.xz
+RUN apk add --no-cache -U wireguard-tools
 
 COPY entrypoint.sh /
 COPY start.sh /
